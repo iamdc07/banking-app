@@ -20,18 +20,36 @@ start() ->
   read_file().
 
 read_file() ->
-  {ok, L} = file:consult("customers.txt"),
-  fwrite("~w~n", [L]),
-  create_processes(L).
+  {ok, Banks} = file:consult("banks.txt"),
+%%  fwrite("~w~n", [B]),
+  NewMap = #{},
+  BankMap = create_bank_processes(Banks, NewMap),
+%%  fwrite("~w~n", [BankMap]),
+  {ok, Customers} = file:consult("customers.txt"),
+%%  fwrite("~w~n", [C]),
+  create_customer_processes(Customers, BankMap).
 
-create_processes(Data) ->
-  case Data == [] of
+create_customer_processes(Customers, BankMap) ->
+  case Customers == [] of
     false ->
       Cid = spawn(customer, create_customer_account, []),
-      [TheHead | TheTail] = Data,
+      [TheHead | TheTail] = Customers,
       {Name, Amount} = TheHead,
-      Cid ! {self(), {Name, Amount}},
-      create_processes(TheTail);
+      Cid ! {self(), {Name, Amount, BankMap}},
+      create_customer_processes(TheTail, BankMap);
     true ->
-      Data = []
+      Customers = []
+  end.
+
+create_bank_processes(Data, NewMap) ->
+  case Data == [] of
+    false ->
+      Bid = spawn(bank, create_banks, []),
+      [TheHead | TheTail] = Data,
+      {BankName, Amount} = TheHead,
+      Bid ! {self(), {BankName, Amount}},
+      Entry = maps:put(BankName, Bid, NewMap),
+      create_bank_processes(TheTail, Entry);
+    true ->
+      NewMap
   end.

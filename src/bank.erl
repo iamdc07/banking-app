@@ -9,5 +9,16 @@
 -module(bank).
 -author("dc").
 
+% Imports
+-import(io, [fwrite/1, fwrite/2]).
+
 %% API
--export([]).
+-export([create_banks/0]).
+
+
+create_banks () ->
+  receive
+    {Sender, {Name, Amount}} ->
+      Entry = #{bankname => Name, balance => Amount}
+%%      fwrite("~p ~p~n", [maps:get(bankname, Entry), maps:get(balance, Entry)])
+  end.
