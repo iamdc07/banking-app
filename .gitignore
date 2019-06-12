@@ -9,9 +9,7 @@ Desktop.ini
 $RECYCLE.BIN/
 
 #Test files
-test.erl
-test.beam
-erl_crash.dump
+/test/
 
 # Windows Installer files
 *.cab
