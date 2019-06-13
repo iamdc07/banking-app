@@ -13,12 +13,42 @@
 -import(io, [fwrite/1, fwrite/2]).
 
 %% API
--export([create_banks/0]).
+-export([create_banks/0, receive_request/2]).
 
 
-create_banks () ->
+create_banks() ->
   receive
     {Sender, {Name, Amount}} ->
-      Entry = #{bankname => Name, balance => Amount}
-%%      fwrite("~p ~p~n", [maps:get(bankname, Entry), maps:get(balance, Entry)])
+      Entry = #{bankname => Name, balance => Amount},
+      timer:sleep(3000),
+%%      fwrite("~p ~p~n", [maps:get(bankname, Entry), maps:get(balance, Entry)]),
+      receive_request(Entry, Sender)
+  end.
+
+receive_request(Entry, MainId) ->
+  receive
+    {Sender, {message, Amount, CustomerName}} ->
+      Balance = maps:get(balance, Entry),
+      NewBalance = Balance - Amount,
+      fwrite("~w Bank's balance: ~w~n", [maps:get(bankname, Entry), Balance]),
+
+      case NewBalance > 0 of
+        false ->
+          case NewBalance == 0 of
+            false ->
+              Sender ! {self(), {maps:get(bankname, Entry), "Declines"}},
+              MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Declines", CustomerName}},
+              receive_request(Entry, MainId);
+            true ->
+              Sender ! {self(), {maps:get(bankname, Entry), "Declines"}},
+              MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Declines", CustomerName}}
+          end;
+        true ->
+          NewMap = #{bankname => maps:get(bankname, Entry), balance => NewBalance},
+%%          fwrite("New entry: ~w~n", [NewMap]),
+          Sender ! {self(), {maps:get(bankname, Entry), "Approves"}},
+          MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Approves", CustomerName}},
+          receive_request(NewMap, MainId)
+      end
+%%      fwrite("Bank Name: ~w | Sender id: ~w | Receiver id: ~w~n", [Message, Sender, self()]),
   end.
