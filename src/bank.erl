@@ -37,17 +37,17 @@ receive_request(Entry, MainId) ->
           case NewBalance == 0 of
             false ->
               Sender ! {self(), {maps:get(bankname, Entry), "Declines"}},
-              MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Declines", CustomerName}},
+              MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Declines", CustomerName, NewBalance}},
               receive_request(Entry, MainId);
             true ->
               Sender ! {self(), {maps:get(bankname, Entry), "Declines"}},
-              MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Declines", CustomerName}}
+              MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Declines", CustomerName, NewBalance}}
           end;
         true ->
           NewMap = #{bankname => maps:get(bankname, Entry), balance => NewBalance},
 %%          fwrite("New entry: ~w~n", [NewMap]),
           Sender ! {self(), {maps:get(bankname, Entry), "Approves"}},
-          MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Approves", CustomerName}},
+          MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Approves", CustomerName, NewBalance}},
           receive_request(NewMap, MainId)
       end
 %%      fwrite("Bank Name: ~w | Sender id: ~w | Receiver id: ~w~n", [Message, Sender, self()]),

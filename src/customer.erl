@@ -51,7 +51,7 @@ request_loan(Entry, Banks, BankMap, MainId) ->
       MainId ! {self(), {display_customer, BankName, RandomAmount, maps:get(name, Entry)}},
       Bid ! {self(), {message, RandomAmount, maps:get(name, Entry)}},
       Status = listen(),
-      fwrite("Status: ~p~n", [Status]),
+%%      fwrite("Status: ~p~n", [Status]),
 
       case Status == "Approves" of
         false ->
