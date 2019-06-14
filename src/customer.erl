@@ -18,14 +18,14 @@
 create_customer_account() ->
   receive
     {Sender, {Name, Amount, Banks, BankMap}} ->
-      fwrite("~w~n", [Banks]),
+%%      fwrite("~w~n", [Banks]),
 %%      rand:uniform()
 %%      NoOfBanks = length(Banks),
 %%      fwrite("~w~n", [Banks]),
 %%      io:format("~p Length is ~p~n", [Banks, length(Banks)]),
       Entry = #{name => Name, balance => Amount},
       timer:sleep(4000),
-      fwrite("~p ~p~n", [maps:get(name, Entry), maps:get(balance, Entry)]),
+%%      fwrite("~p ~p~n", [maps:get(name, Entry), maps:get(balance, Entry)]),
       request_loan(Entry, Banks, BankMap, Sender)
   end.
 
@@ -40,49 +40,75 @@ request_loan(Entry, Banks, BankMap, MainId) ->
       RandomBankNumber = rand:uniform(NoOfBanks),
       EachBank = lists:nth(RandomBankNumber, Banks),
       {BankName, Amount} = EachBank,
-      io:format("Length is ~p~n", [NoOfBanks]),
-      fwrite("Map size: ~w~n", [maps:size(BankMap)]),
+%%      io:format("Length is ~p~n", [NoOfBanks]),
+%%      fwrite("Map size: ~w~n", [maps:size(BankMap)]),
 %%  fwrite("Random Amount: ~w~n", [RandomAmount]),
 %%      fwrite("Random Bank: ~w~n", [BankName]),
       Bid = maps:get(BankName, BankMap),
 %%  fwrite("Id: ~w~n", [Bid]),
 %%  fwrite("Customer id: ~w~n", [self()]),
 %%      fwrite("~w requests a loan of ~w dollar(s) from ~w~n", [maps:get(name, Entry), RandomAmount, BankName]),
-      MainId ! {self(), {display_customer, BankName, RandomAmount, maps:get(name, Entry)}},
-      Bid ! {self(), {message, RandomAmount, maps:get(name, Entry)}},
-      Status = listen(),
 %%      fwrite("Status: ~p~n", [Status]),
 
-      case Status == "Approves" of
-        false ->
-          NewMap = maps:remove(BankName, BankMap),
-          NewList = lists:delete(EachBank, Banks),
-%%          fwrite("Banks: ~w~n", [NewList]),
-%%          fwrite("Map: ~w~n", [NewMap]),
-          request_loan(Entry, NewList, NewMap, MainId);
-        true ->
-%%          fwrite("Approves~n"),
-          Balance = maps:get(balance, Entry),
-          NewBalance = Balance - RandomAmount,
-          fwrite("Apna balance: ~w~n", [NewBalance]),
+      Balance = maps:get(balance, Entry),
+      NewBalance = Balance - RandomAmount,
 
-          case NewBalance > 0 of
+%%      fwrite("Balance: ~w~n", [Balance]),
+%%      fwrite("New balance: ~w~n", [NewBalance]),
+      case NewBalance > 0 of
+        false ->
+          case NewBalance == 0 of
             false ->
-              case NewBalance == 0 of
-                false ->
-                  request_loan(Entry, Banks, BankMap, MainId);
-                true ->
-%%                  fwrite("All loan amount is requested")
-                  MainId ! {self(), {customer_error, "All loan amount is requested"}}
-              end;
+              request_loan(Entry, Banks, BankMap, MainId);
             true ->
+              MainId ! {self(), {display_customer, BankName, RandomAmount, maps:get(name, Entry)}},
+              Bid ! {self(), {request, RandomAmount, maps:get(name, Entry)}},
+
+              Status = listen(),
+
+              case Status == "Approves" of
+                false ->
+                  NewMap = maps:remove(BankName, BankMap),
+                  NewList = lists:delete(EachBank, Banks),
+%%                  fwrite("Banks: ~w~n", [NewList]),
+%%                  fwrite("Map: ~w~n", [NewMap]),
+                  request_loan(Entry, NewList, NewMap, MainId);
+                true ->
+%%                  fwrite("Approves~n"),
+%%                  fwrite("Apna balance: ~w~n", [NewBalance]),
+
+                  NewMap = #{name => maps:get(name, Entry), balance => NewBalance},
+%%                  fwrite("New entry: ~w~n", [NewMap]),
+%%                  MainId ! {self(), {customer_error, "All loan amount is requested"}},
+                  timer:sleep(4000),
+                  MainId ! {self(), {customer_signal, maps:get(name, Entry), maps:get(balance, Entry), "All loan amount is requested"}}
+              end
+          end;
+        true ->
+          MainId ! {self(), {display_customer, BankName, RandomAmount, maps:get(name, Entry)}},
+          Bid ! {self(), {request, RandomAmount, maps:get(name, Entry)}},
+          Status = listen(),
+
+          case Status == "Approves" of
+            false ->
+              NewMap = maps:remove(BankName, BankMap),
+              NewList = lists:delete(EachBank, Banks),
+%%              fwrite("Banks: ~w~n", [NewList]),
+%%              fwrite("Map: ~w~n", [NewMap]),
+              request_loan(Entry, NewList, NewMap, MainId);
+            true ->
+%%              fwrite("Approves~n"),
+%%              fwrite("Apna balance: ~w~n", [NewBalance]),
+
               NewMap = #{name => maps:get(name, Entry), balance => NewBalance},
-              fwrite("New entry: ~w~n", [NewMap]),
+%%              fwrite("New entry: ~w~n", [NewMap]),
               request_loan(NewMap, Banks, BankMap, MainId)
           end
       end;
     true ->
-      MainId ! {self(), {customer_error, "No more Banks left to request"}}
+%%      MainId ! {self(), {customer_error, "No more Banks left to request"}},
+      timer:sleep(4000),
+      MainId ! {self(), {customer_signal, maps:get(name, Entry), maps:get(balance, Entry), "No more Banks left to request"}}
 %%      fwrite("No more Banks left to request")
   end.
 

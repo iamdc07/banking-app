@@ -27,10 +27,10 @@ create_banks() ->
 
 receive_request(Entry, MainId) ->
   receive
-    {Sender, {message, Amount, CustomerName}} ->
+    {Sender, {request, Amount, CustomerName}} ->
       Balance = maps:get(balance, Entry),
       NewBalance = Balance - Amount,
-      fwrite("~w Bank's balance: ~w~n", [maps:get(bankname, Entry), Balance]),
+%%      fwrite("~w Bank's balance: ~w~n", [maps:get(bankname, Entry), Balance]),
 
       case NewBalance > 0 of
         false ->
@@ -41,7 +41,9 @@ receive_request(Entry, MainId) ->
               receive_request(Entry, MainId);
             true ->
               Sender ! {self(), {maps:get(bankname, Entry), "Declines"}},
-              MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Declines", CustomerName, NewBalance}}
+              MainId ! {self(), {display_bank, maps:get(bankname, Entry), Amount, "Declines", CustomerName, NewBalance}},
+              MainId ! {self(), {bank_signal, maps:get(bankname, Entry), maps:get(balance, Entry), "No Bank Balance"}},
+              receive_request(Entry, MainId)
           end;
         true ->
           NewMap = #{bankname => maps:get(bankname, Entry), balance => NewBalance},
