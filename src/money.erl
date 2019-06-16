@@ -14,7 +14,7 @@
 -import(lists, [last/1, nth/2]).
 
 %% API
--export([start/0, listen/4]).
+-export([start/0, listen/5]).
 
 start() ->
   read_file().
@@ -34,7 +34,7 @@ read_file() ->
   CustomerDataMap = create_data_map(Customers, #{}),
 
   timer:sleep(3000),
-  listen(0, BankDataMap, CustomerDataMap, Customers).
+  listen(0, BankDataMap, CustomerDataMap, Customers, []).
 
 create_customer_processes(Customers, Banks, BankMap) ->
   case Customers == [] of
@@ -94,12 +94,13 @@ show_data(Data) ->
       Data = []
   end.
 
-listen(Flag, BankDataMap, CustomerDataMap, CustomerData) ->
+listen(Flag, BankDataMap, CustomerDataMap, CustomerData, CustomerResults) ->
   Size = maps:size(CustomerDataMap),
   if
     Flag == Size ->
       timer:sleep(2000),
       fwrite("~n"),
+      display_customer_data(CustomerResults),
       display_bank_data(maps:to_list(BankDataMap));
     true ->
       []
@@ -114,29 +115,36 @@ listen(Flag, BankDataMap, CustomerDataMap, CustomerData) ->
           NewCustomerBalance = CustomerBalance + Amount,
           NewBankMap = maps:put(BankName, NewBankBalance, BankDataMap),
           NewCustomerMap = maps:put(CustomerName, NewCustomerBalance, CustomerDataMap),
-          listen(Flag, NewBankMap, NewCustomerMap, CustomerData);
+          listen(Flag, NewBankMap, NewCustomerMap, CustomerData, CustomerResults);
         true ->
-          listen(Flag, BankDataMap, CustomerDataMap, CustomerData)
+          listen(Flag, BankDataMap, CustomerDataMap, CustomerData, CustomerResults)
       end;
 
     {Sender, {display_customer, BankName, Amount, CustomerName}} ->
       fwrite("~w requests a loan of ~w dollar(s) from ~w~n", [CustomerName, Amount, BankName]),
-      listen(Flag, BankDataMap, CustomerDataMap, CustomerData);
+      listen(Flag, BankDataMap, CustomerDataMap, CustomerData, CustomerResults);
 
     {Sender, {customer_error, Message}} ->
       fwrite("~s~n", [Message]),
-      listen(Flag, BankDataMap, CustomerDataMap, CustomerData);
+      listen(Flag, BankDataMap, CustomerDataMap, CustomerData, CustomerResults);
 
     {Sender, {customer_signal, CustomerName, Amount, Message}} ->
       if
         Message == "No more Banks left to request" ->
-          fwrite("~w WAS ABLE TO BORROW ~w DOLLAR(s)~n", [CustomerName, maps:get(CustomerName, CustomerDataMap)]);
+%%          fwrite("~w WAS ABLE TO BORROW ~w DOLLAR(s)~n", [CustomerName, maps:get(CustomerName, CustomerDataMap)]),
+          Result = maps:put(CustomerName, maps:get(CustomerName, CustomerDataMap), #{}),
+          NewCustomerResults = lists:append([{"borrow", Result}], CustomerResults);
         Message == "All loan amount is requested" ->
-          fwrite("~w HAS REACHED THE OBJECTIVE OF ~w DOLLAR(s)~n", [CustomerName, maps:get(CustomerName, CustomerDataMap)]);
+%%          fwrite("~w HAS REACHED THE OBJECTIVE OF ~w DOLLAR(s)~n", [CustomerName, maps:get(CustomerName, CustomerDataMap)]),
+          Result = maps:put(CustomerName, maps:get(CustomerName, CustomerDataMap), #{}),
+          NewCustomerResults = lists:append([{"reached", Result}], CustomerResults);
+%%          fwrite("~p~n", [NewCustomerResults]);
         true ->
-          fwrite("~w WAS ABLE TO BORROW ~w DOLLAR(s)~n", [CustomerName, maps:get(CustomerName, CustomerDataMap)])
+%%          fwrite("~w WAS ABLE TO BORROW ~w DOLLAR(s)~n", [CustomerName, maps:get(CustomerName, CustomerDataMap)]),
+          Result = maps:put(CustomerName, maps:get(CustomerName, CustomerDataMap), #{}),
+          NewCustomerResults = lists:append([{"borrow", Result}], CustomerResults)
       end,
-      listen(Flag + 1, BankDataMap, CustomerDataMap, CustomerData);
+      listen(Flag + 1, BankDataMap, CustomerDataMap, CustomerData, NewCustomerResults);
 
     {Sender, {bank_signal, BankName, Amount, Message}} ->
       if
@@ -145,8 +153,26 @@ listen(Flag, BankDataMap, CustomerDataMap, CustomerData) ->
         true ->
           fwrite("~w has ~w dollar(s) remaining~n", [BankName, maps:get(BankName, BankDataMap)])
       end,
-      listen(Flag, BankDataMap, CustomerDataMap, CustomerData)
+      listen(Flag, BankDataMap, CustomerDataMap, CustomerData, CustomerResults)
 
+  end.
+
+display_customer_data(Data) ->
+  case Data == [] of
+    false ->
+      [Head | Tail] = Data,
+      {Message, DataMap} = Head,
+      [TheHead | TheTail] = maps:to_list(DataMap),
+      {CustomerName, Amount} = TheHead,
+      if
+        Message == "reached" ->
+          fwrite("~w HAS REACHED THE OBJECTIVE OF ~w DOLLAR(s)~n", [CustomerName, Amount]);
+        true ->
+          fwrite("~w WAS ABLE TO BORROW ~w DOLLAR(s)~n", [CustomerName, Amount])
+      end,
+      display_customer_data(Tail);
+    true ->
+      Data = []
   end.
 
 display_bank_data(Data) ->
